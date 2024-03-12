@@ -1,0 +1,63 @@
+from bottle import Bottle, request, response
+import mysql.connector
+# pip install cherrypy
+
+app = Bottle()
+
+# Replace these values with your MySQL database credentials
+db_config = {
+    'host': 'localhost',
+    'user': 'root',
+    'password': '',
+    'database': 'resquestfrom',
+}
+
+# MySQL connection
+conn = mysql.connector.connect(**db_config)
+cursor = conn.cursor()
+# cor
+def enable_cors(fn):
+    def _enable_cors(*args, **kwargs):
+        # set CORS headers
+        response.set_header('Access-Control-Allow-Origin', '*')
+        response.set_header('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS')
+        response.set_header('Access-Control-Allow-Headers', 'Origin, Accept, Content-Type, X-Requested-With, X-CSRF-Token')
+        
+        if request.method == "OPTIONS":
+            response.status = 200
+
+        return fn(*args, **kwargs)        
+    return _enable_cors
+
+
+# Route to handle form submission
+@app.post('/save-data', method=["post", "OPTIONS"])
+@enable_cors
+def save_data():
+    try:
+        data = request.json
+        print(data)
+
+        # Replace 'your_table' and column names accordingly
+        query = "INSERT INTO resform (fname, sname, lname, addressinfo, requestdocu, purpose, sign, actionavailable, actiontaken, refs, received, daterecived, requestapproved, dateapproved, amountpaid, orno, claim, dateclaim) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        values = (data['fname'], data['sname'], data['lname'], data['addressinfo'], data['requestdocu'], data['purpose'], data['sign'], data['actionavailable'], data['actiontaken'], data['refs'], data['received'], data['daterecived'], data['requestapproved'], data['dateapproved'], data['amountpaid'], data['orno'], data['claim'], data['dateclaim'])
+
+        try:
+            cursor.execute(query, values)
+            conn.commit()
+            return {'status': 'success', 'message': 'Data saved successfully'}
+        except Exception as e:
+            return {'status': 'error', 'message': str(e)}
+    except Exception as er:
+        print(er)
+    return ""
+
+import cherrypy
+cherrypy.tree.graft(app,'/')
+cherrypy.config.update({
+    'server.socket_host': '0.0.0.0',
+    'server.socket_port':  8080,
+})
+
+cherrypy.engine.start()
+cherrypy.engine.block()
